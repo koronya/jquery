@@ -19,11 +19,9 @@ QUnit.module( "effects", {
 		this._oldInterval = jQuery.fx.interval;
 		jQuery.fx.step = {};
 		jQuery.fx.interval = 10;
-		jQuery.now = Date.now;
 	},
 	teardown: function() {
 		this.sandbox.restore();
-		jQuery.now = Date.now;
 		jQuery.fx.stop();
 		jQuery.fx.interval = this._oldInterval;
 		window.requestAnimationFrame = oldRaf;
@@ -33,7 +31,7 @@ QUnit.module( "effects", {
 
 QUnit[ jQuery.find.compile ? "test" : "skip" ]( "sanity check", function( assert ) {
 	assert.expect( 1 );
-	assert.equal( jQuery( "#dl:visible, #qunit-fixture:visible, #foo:visible" ).length, 3, "QUnit state is correct for testing effects" );
+	assert.equal( jQuery( "#qunit-fixture:visible, #foo:visible" ).length, 2, "QUnit state is correct for testing effects" );
 } );
 
 QUnit.test( "show() basic", function( assert ) {
@@ -221,6 +219,38 @@ supportjQuery.each( hideOptions, function( type, setup ) {
 		clock.tick( 300 );
 
 		assert.expectJqData( this, $span, "olddisplay" );
+	} );
+
+	QUnit[ document.body.attachShadow ? "test" : "skip" ](
+		"Persist correct display value - " + type + " hidden, shadow child", function( assert ) {
+		assert.expect( 3 );
+
+		jQuery( "<div id='shadowHost'></div>" ).appendTo( "#qunit-fixture" );
+
+		var shadowHost = document.querySelector( "#shadowHost" );
+		var shadowRoot = shadowHost.attachShadow( { mode: "open" } );
+		shadowRoot.innerHTML = "<style>.hidden{display: none;}</style>" +
+			"<span id='shadowChild' class='hidden'></span>";
+		var shadowChild = shadowRoot.querySelector( "#shadowChild" );
+
+		var $shadowChild = jQuery( shadowChild );
+		var displayNone = "none";
+		var display = "inline";
+		var clock = this.clock;
+
+		$shadowChild.fadeIn( 100, function() {
+			assert.equal( $shadowChild.css( "display" ), display, "Expecting shadow display: " + display );
+			$shadowChild.fadeOut( 100, function() {
+				assert.equal( $shadowChild.css( "display" ), displayNone, "Expecting shadow display: " + displayNone );
+				$shadowChild.fadeIn( 100, function() {
+					assert.equal( $shadowChild.css( "display" ), display, "Expecting shadow display: " + display );
+				} );
+			} );
+		} );
+
+		clock.tick( 300 );
+
+		assert.expectJqData( this, $shadowChild, "olddisplay" );
 	} );
 } );
 
@@ -605,6 +635,17 @@ QUnit.test( "animate non-element", function( assert ) {
 
 	jQuery( obj ).animate( { test: 200 }, 200, function() {
 		assert.equal( obj.test, 200, "The custom property should be modified." );
+	} );
+	this.clock.tick( 200 );
+} );
+
+QUnit.test( "animate non-element's zIndex without appending \"px\"", function( assert ) {
+	assert.expect( 1 );
+
+	var obj = { zIndex: 0 };
+
+	jQuery( obj ).animate( { zIndex: 200 }, 200, function() {
+		assert.equal( obj.zIndex, 200, "The custom property should be modified without appending \"px\"." );
 	} );
 	this.clock.tick( 200 );
 } );
@@ -1807,7 +1848,8 @@ QUnit.test( "animate does not change start value for non-px animation (#7109)", 
 		}
 	} ).queue( function( next ) {
 		var ratio = computed[ 0 ] / actual;
-		assert.ok( ratio > 0.9 && ratio < 1.1, "Starting width was close enough" );
+		assert.ok( ratio > 0.9 && ratio < 1.1,
+			"Starting width was close enough (" + computed[ 0 ] + " approximates " + actual + ")" );
 		next();
 		parent.remove();
 	} );
@@ -2508,7 +2550,7 @@ function testEasing( assert, speed, easing, complete ) {
 
 	assert.equal( options.duration, 10, "Duration set properly" );
 	assert.equal(
-		jQuery.isFunction( options.easing ) ? options.easing() : options.easing,
+		typeof options.easing === "function" ? options.easing() : options.easing,
 		"linear",
 		"Easing set properly"
 	);

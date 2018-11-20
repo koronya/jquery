@@ -1415,7 +1415,7 @@ QUnit.test( "jQuery.clone() (#8017)", function( assert ) {
 
 	assert.expect( 2 );
 
-	assert.ok( jQuery.clone && jQuery.isFunction( jQuery.clone ), "jQuery.clone() utility exists and is a function." );
+	assert.ok( jQuery.clone && typeof jQuery.clone === "function", "jQuery.clone() utility exists and is a function." );
 
 	var main = jQuery( "#qunit-fixture" )[ 0 ],
 		clone = jQuery.clone( main );
@@ -1795,6 +1795,34 @@ QUnit.test( "html(String|Number)", function( assert ) {
 
 QUnit.test( "html(Function)", function( assert ) {
 	testHtml( manipulationFunctionReturningObj, assert  );
+} );
+
+QUnit[
+	// Support: Edge 16-17
+	// Edge sometimes doesn't execute module scripts so skip the test there.
+	( QUnit.moduleTypeSupported && !/edge\//i.test( navigator.userAgent ) ) ?
+		"test" :
+		"skip"
+]( "html(script type module)", function( assert ) {
+	assert.expect( 4 );
+	var done = assert.async(),
+		$fixture = jQuery( "#qunit-fixture" );
+
+	$fixture.html(
+		[
+			"<script type='module'>ok( true, 'evaluated: module' );</script>",
+			"<script type='module' src='" + url( "module.js" ) + "'></script>",
+			"<div>",
+				"<script type='module'>ok( true, 'evaluated: inner module' );</script>",
+				"<script type='module' src='" + url( "inner_module.js" ) + "'></script>",
+			"</div>"
+		].join( "" )
+	);
+
+	// Allow asynchronous script execution to generate assertions
+	setTimeout( function() {
+		done();
+	}, 1000 );
 } );
 
 QUnit.test( "html(Function) with incoming value -- direct selection", function( assert ) {
@@ -2279,7 +2307,7 @@ QUnit.test( "Cloned, detached HTML5 elems (#10667,10670)", function( assert ) {
 	// First clone
 	$clone = $section.clone();
 
-	// This branch tests a known behaviour in modern browsers that should never fail.
+	// This branch tests a known behavior in modern browsers that should never fail.
 	// Included for expected test count symmetry (expecting 1)
 	assert.equal( $clone[ 0 ].nodeName, "SECTION", "detached clone nodeName matches 'SECTION'" );
 
@@ -2377,7 +2405,7 @@ QUnit.asyncTest( "html() - script exceptions bubble (#11743)", 2, function( asse
 				assert.ok( true, "Exception thrown in remote script" );
 			};
 
-			jQuery( "#qunit-fixture" ).html( "<script src='data/badcall.js'></script>" );
+			jQuery( "#qunit-fixture" ).html( "<script src='" + baseURL + "badcall.js'></script>" );
 			assert.ok( true, "Exception ignored" );
 		} else {
 			assert.ok( true, "No jQuery.ajax" );
@@ -2463,7 +2491,7 @@ QUnit.test( "script evaluation (#11795)", function( assert ) {
 
 	if ( jQuery.ajax ) {
 		Globals.register( "testBar" );
-		jQuery( "#qunit-fixture" ).append( "<script src='" + url( "data/testbar.php" ) + "'/>" );
+		jQuery( "#qunit-fixture" ).append( "<script src='" + url( "mock.php?action=testbar" ) + "'/>" );
 		assert.strictEqual( window.testBar, "bar", "Global script evaluation" );
 	} else {
 		assert.ok( true, "No jQuery.ajax" );
@@ -2748,6 +2776,21 @@ QUnit.test( "Make sure tr is not appended to the wrong tbody (gh-3439)", functio
 	htmlOut = table.innerHTML.toLowerCase().replace( /\s/g, "" );
 
 	assert.strictEqual( htmlOut, htmlExpected );
+} );
+
+QUnit.test( "Make sure tags with single-character names are found (gh-4124)", function( assert ) {
+	assert.expect( 1 );
+
+	var htmlOut,
+		htmlIn = "<p>foo<!--<td>--></p>",
+		$el = jQuery( "<div/>" );
+
+	$el.html( htmlIn );
+
+	// Lowercase and replace spaces to remove possible browser inconsistencies
+	htmlOut = $el[ 0 ].innerHTML.toLowerCase().replace( /\s/g, "" );
+
+	assert.strictEqual( htmlOut, htmlIn );
 } );
 
 QUnit.test( "Insert script with data-URI (gh-1887)", 1, function( assert ) {
